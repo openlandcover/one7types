@@ -12,6 +12,9 @@ The building blocks of our approach, and how they have been organized into modul
 ![This figure shows a flowchart of our processing workflow. Our main inputs are landscape zonation information, historical satellite imagery and labeled points. The satellite imagery and landscape zonation information are used to produce and attach feature vectors to all the labeled points. A classifier is trained using this table of points with their feature vectors. Finally, the classifier is used to predict a resulting landcover map, which contains pixel-wise probability of each landcover type and the top-ranking landcover type label for that pixel.](schematic.png "Schematic of the processing workflow")
 
 The rest of this document is arranged as follows:
+* [Information about the output](#information-about-the-output)
+  * [Description](#description)
+  * [Bands](#bands)
 * [Steps to reproduce our analysis](#steps-to-reproduce-our-analysis)
   * [1. Choose running parameters and inputs](#1-choose-running-parameters-and-inputs)
   * [2. Generate masks for landscape zonation and area of interest](#2-generate-masks-for-landscape-zonation-and-area-of-interest)
@@ -22,6 +25,34 @@ The rest of this document is arranged as follows:
   * [Generating features and sampling them](#generating-features-and-sampling-them)
   * [Classification—training and prediction](#classificationtraining-and-prediction)
 * [Funding and support](#funding-and-support)
+
+## Information about the output
+### Description
+
+| | Description |
+|:---------------------------|--|
+| ![Thumbnail of our landcover map](thumbnail.png) | This dataset provides a probabilistic land cover classification for semi-arid India, covering 18 of its non-Himalayan states. It maps 7 different types of Open Natural Ecosystems and 5 classes of other land cover types. <br /> <br /> **Earth Engine asset ID**: `ee.Image('projects/ee-open-natural-ecosystems/assets/publish/onesWith7Classes/landcover')` [(link)](https://code.earthengine.google.com/?asset=projects/ee-open-natural-ecosystems/assets/publish/onesWith7Classes/landcover) |
+
+
+### Bands
+
+**Resolution**: 30 meters per pixel.
+
+| Index| Name | Min | Max | Description |
+| :---------------------------|-|-|-|-|
+| 0 | agri_hiBiomass_Prob | 0 | 1 | Estimated probability of complete coverage by high biomass agriculture. |
+| 1 | agri_loBiomass_Prob | 0 | 1 | Estimated probability of complete coverage by low biomass agriculture. |
+| 2 | bare_Prob | 0 | 1 | Estimated probability of complete coverage by bare or sparse vegetattion. |
+| 3 | built_Prob | 0 | 1 | Estimated probability of complete coverage by built up area. |
+| 4 | dune_Prob | 0 | 1 | Estimated probability of complete coverage by sand dunes. |
+| 5 | forest_Prob | 0 | 1 | Estimated probability of complete coverage by forest. |
+| 6 | ravine_Prob | 0 | 1 | Estimated probability of complete coverage by ravines. |
+| 7 | saline_Prob | 0 | 1 | Estimated probability of complete coverage by salt marshes of the Rann of Kutchch. |
+| 8 | savanna_open_Prob | 0 | 1 | Estimated probability of complete coverage by open savanna. |
+| 9 | savanna_shrub_Prob | 0 | 1 | Estimated probability of complete coverage by shrub savanna. |
+| 10 | savanna_woodland_Prob | 0 | 1 | Estimated probability of complete coverage by woodland savanna. |
+| 11 | water_wetland_Prob | 0 | 1 | Estimated probability of complete coverage by water or wetlands. |
+| 12 | top1LabelNum | 1 | 12 | Numeric label of the 12 classes. 1: agri_hiBiomass, 2: agri_loBiomass, 3: bare, 4: built, 5: dune, 6: forest, 7: ravine, 8: saline, 9: savanna_open, 10: savanna_shrub, 11: savanna_woodland, 12: water_wetland. |
 
 ## Steps to reproduce our analysis
 
