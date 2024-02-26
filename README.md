@@ -139,6 +139,6 @@ The following are details about the modules, the code they contain, and how they
 
 ## Funding and support
 
-Financial support for various aspects of this mapping work came from [Azim Premji University](https://azimpremjiuniversity.edu.in/) as part of the Research Funding Programme 2020, and from the [National Centre for Biological Sciences](https://www.ncbs.res.in/), its [Archives](https://archives.ncbs.res.in/), the Nadathur Foundation, [TNQ Technologies](https://www.tnq.co.in/csr-activities/) and [ATREE](https://www.atree.org/).
+Financial support for various aspects of this mapping work came from [Azim Premji University](https://azimpremjiuniversity.edu.in/) as part of the Research Funding Programme 2020, and from the [National Centre for Biological Sciences](https://www.ncbs.res.in/), its [Archives](https://archives.ncbs.res.in/), the Nadathur Foundation, [TNQ Technologies](https://www.tnq.co.in/csr-activities/) and [ATREE](https://www.atree.org/). [Nature Conservation Foundation](http://www.ncf-india.org/) provided technical and logistical support.
 
 This work would not have been possible without the generosity of efforts behind many free, public and open source scientific computation resources and software tools, chief among them being [{geemap}](https://geemap.org/), [Spatial Thoughts](https://spatialthoughts.com/) and [QGIS](https://qgis.org/). These analyses were carried out on the [Google Earth Engine](https://earthengine.google.com/) cloud computing platform.
