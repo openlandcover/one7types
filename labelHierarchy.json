@@ -1,0 +1,23 @@
+{
+  "L0": [
+    {"name": "Landcover", "code": 0}
+  ],
+  "L1": [
+    {"name": "nonone", "parent": "Landcover", "code": 100},
+    {"name": "one",    "parent": "Landcover", "code": 200}
+  ],
+  "L2": [
+    {"name": "bare",             "parent": "one", "code": 3},
+    {"name": "dune",             "parent": "one", "code": 5},
+    {"name": "ravine",           "parent": "one", "code": 7},
+    {"name": "saline",           "parent": "one", "code": 8},
+    {"name": "savanna_open",     "parent": "one", "code": 9},
+    {"name": "savanna_shrub",    "parent": "one", "code": 10},
+    {"name": "savanna_woodland", "parent": "one", "code": 11},
+    {"name": "agri_hiBiomass",   "parent": "nonone", "code": 1},
+    {"name": "agri_loBiomass",   "parent": "nonone", "code": 2},
+    {"name": "built",            "parent": "nonone", "code": 4},
+    {"name": "forest",           "parent": "nonone", "code": 6},
+    {"name": "water_wetland",    "parent": "nonone", "code": 12}
+  ]
+}

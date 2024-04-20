@@ -1,11 +1,11 @@
 # Mapping landcover in India's Open Natural Ecosystems (ONEs)
 
-| :warning: This repository contains code and data that reproduces a PRE-RELEASE ALPHA version of our map. :warning:|
-|:---------------------------|
+This repo contains our code for mapping 7 major landcover types in India's Open Natural Ecosystems (ONE): ***saline areas***, ***sand dunes***, ***ravines***, ***sparsely vegetated areas***, ***open savannas***, ***shrub savannas*** and ***woodland savannas***. A visualization of this map is available [here](https://one-india.streamlit.app/).
 
-This repo contains our code for mapping 7 major landcover types in India's Open Natural Ecosystems (ONE): ***saline areas***, ***sand dunes***, ***ravines***, ***sparsely vegetated areas***, ***open savannas***, ***shrub savannas*** and ***woodland savannas***. A visualization of this map is available [here](https://tinyurl.com/one-types-may2022).
+This probabilistic land cover map was produced using an **explicit hierarchical classification** approach. See [below](#classificationtraining-and-prediction) for more on this approach.
 
-> NOTE: This code base got us our current [map](https://tinyurl.com/one-types-may2022), and is being published here in the spirit of openness and transparency. Expect it to contain a few code chunks that are related to, but not directly involved in, producing our current map. They were useful while we iterated through early versions of the map. As we further build on this code internally towards its final version, we hope to also have cleaner code and better documentation around it, at which point this repo will be updated.
+
+> NOTE: This code base got us our current [map](https://one-india.streamlit.app/), and is being published here in the spirit of openness and transparency. Expect it to contain a few code chunks that are related to, but not directly involved in, producing this map. They were useful while we iterated through earlier versions of the map.
 
 The building blocks of our approach, and how they have been organized into modules in our code, are depicted in the schematic below. The steps involved in our processing workflow are described below. More details about how the code and modules are organized are in the sections that follow.
 
@@ -31,28 +31,34 @@ The rest of this document is arranged as follows:
 
 | | Description |
 |:---------------------------|--|
-| ![Thumbnail of our landcover map](thumbnail.png) | This dataset provides a probabilistic land cover classification for semi-arid India, covering 18 of its non-Himalayan states. It maps 7 different types of Open Natural Ecosystems and 5 classes of other land cover types. <br /> <br /> **Earth Engine asset ID**: `ee.Image('projects/ee-open-natural-ecosystems/assets/publish/onesWith7Classes/landcover')` [(link)](https://code.earthengine.google.com/?asset=projects/ee-open-natural-ecosystems/assets/publish/onesWith7Classes/landcover) |
+| ![Thumbnail of our landcover map](thumbnail.png) | This dataset provides a probabilistic land cover classification for semi-arid India, covering 18 of its non-Himalayan states. It maps 7 different types of Open Natural Ecosystems and 5 classes of other land cover types. <br /> <br /> **Earth Engine asset ID**: `ee.Image('projects/ee-open-natural-ecosystems/assets/publish/onesWith7Classes/landcover_hier')` [(link)](https://code.earthengine.google.com/?asset=projects/ee-open-natural-ecosystems/assets/publish/onesWith7Classes/landcover_hier) |
 
+See [here](https://code.earthengine.google.co.in/02585ca79a284e0be81441c24f8653a7) for an Earth Engine sample script to get started.
 
 ### Bands
 
 **Resolution**: 30 meters per pixel.
 
-| Index| Name | Min | Max | Description |
-| :---------------------------|-|-|-|-|
-| 0 | agri_hiBiomass_Prob | 0 | 1 | Estimated probability of complete coverage by high biomass agriculture. |
-| 1 | agri_loBiomass_Prob | 0 | 1 | Estimated probability of complete coverage by low biomass agriculture. |
-| 2 | bare_Prob | 0 | 1 | Estimated probability of complete coverage by bare or sparse vegetattion. |
-| 3 | built_Prob | 0 | 1 | Estimated probability of complete coverage by built up area. |
-| 4 | dune_Prob | 0 | 1 | Estimated probability of complete coverage by sand dunes. |
-| 5 | forest_Prob | 0 | 1 | Estimated probability of complete coverage by forest. |
-| 6 | ravine_Prob | 0 | 1 | Estimated probability of complete coverage by ravines. |
-| 7 | saline_Prob | 0 | 1 | Estimated probability of complete coverage by salt marshes of the Rann of Kutchch. |
-| 8 | savanna_open_Prob | 0 | 1 | Estimated probability of complete coverage by open savanna. |
-| 9 | savanna_shrub_Prob | 0 | 1 | Estimated probability of complete coverage by shrub savanna. |
-| 10 | savanna_woodland_Prob | 0 | 1 | Estimated probability of complete coverage by woodland savanna. |
-| 11 | water_wetland_Prob | 0 | 1 | Estimated probability of complete coverage by water or wetlands. |
-| 12 | top1LabelNum | 1 | 12 | Numeric label of the 12 classes. 1: agri_hiBiomass, 2: agri_loBiomass, 3: bare, 4: built, 5: dune, 6: forest, 7: ravine, 8: saline, 9: savanna_open, 10: savanna_shrub, 11: savanna_woodland, 12: water_wetland. |
+| Index| Name | Scaling | Min | Max | Description |
+| :---------------------------|-|-|-|-|-|
+| 0 | l1LabelNum | None | 100 | 200 | Numeric Code of Level 1 Label. 100: Non-ONE, 200: ONE.|
+| 1 | l2LabelNum | None | 1 | 12 | Numeric Code of Level 2 Label. 1: agri_hiBiomass, 2: agri_loBiomass, 3: bare, 4: built, 5: dune, 6: forest, 7: ravine, 8: saline, 9: savanna_open, 10: savanna_shrub, 11: savanna_woodland, 12: water_wetland.|
+| 2 | probL1Label | 10000 | 0 | 10000 | Probability Value of 'Winning' Level 1 Label. |
+| 3 | probL2Label | 10000 | 0 | 10000 | Probability Value of 'Winning' Level 2 Label. |
+| 4 | prob_nonone | 10000 | 0 | 10000 | Probability that a pixel is a Non-ONE. |
+| 5 | prob_one | 10000 | 0 | 10000 | Probability that a pixel is an ONE. |
+| 6 | prob_one_bare | 10000 | 0 | 10000 | Probability that a pixel is Bare or Sparsely-Vegetated. |
+| 7 | prob_one_dune | 10000 | 0 | 10000 | Probability that a pixel is a Dune. |
+| 8 | prob_one_ravine | 10000 | 0 | 10000 | Probability that a pixel is a Ravine. |
+| 9 | prob_one_saline | 10000 | 0 | 10000 | Probability that a pixel is a Saline area. |
+| 10 | prob_one_savanna_open | 10000 | 0 | 10000 | Probability that a pixel is an Open Savanna. |
+| 11 | prob_one_savanna_shrub | 10000 | 0 | 10000 | Probability that a pixel is a Shrub Savanna. |
+| 12 | prob_one_savanna_woodland | 10000 | 0 | 10000 | Probability that a pixel is a Woodland Savanna. |
+| 13 | prob_nonone_agri_hiBiomass | 10000 | 0 | 10000 | Probability that a pixel is under 'high biomass' agriculture (e.g., orchards, groves, tree-crops, agroforestry). |
+| 14 | prob_nonone_agri_loBiomass | 10000 | 0 | 10000 | Probability that a pixel is under 'low biomass' open agriculture (e.g., cereals, pulses, vegetables & oilseeds). |
+| 15 | prob_nonone_built | 10000 | 0 | 10000 | Probability that a pixel is a built-up area. |
+| 16 | prob_nonone_forest | 10000 | 0 | 10000 | Probability that a pixel is a forest. |
+| 17 | prob_nonone_water_wetland | 10000 | 0 | 10000 | Probability that a pixel is a waterbody, or seasonal wetland. |
 
 ## Steps to reproduce our analysis
 
@@ -63,11 +69,11 @@ Config file: [`config.ini`](config.ini).
 
 Values of nearly all running configuration and algorithm input parameters of the various code modules are stored as variables in the config file. They are read from this file at runtime. **Change their values in [`config.ini`](config.ini), before re-running the code.**
 
-> An exception to this rule is the [classification](#classificationtraining-and-prediction) module. Here, a few key parameters determining the configuration of the final classification run can be specified as function arguments. See [`classify.ipynb`](classify.ipynb), for how to do so.
+> An exception to this rule is the [classification](#classificationtraining-and-prediction) module. Here, a few key parameters determining the configuration of the final classification run can be specified as function arguments. See [`classifyHierarch.ipynb`](classifyHierarch.ipynb), for how to do so.
 
 **When starting a fresh round of analysis:** create a new folder in your Earth Engine asset space, and set its path as the value of `assetFolderWithFeatures` in [`config.ini`](config.ini).
 
-**When refreshing labeled points data for modeling:** [upload a points table](https://developers.google.com/earth-engine/guides/table_upload) (from, eg., a CSV or a Shapefile) into an Earth Engine Feature Collection, and set its path as the value of `lulcLabeledPoints` in [`config.ini`](config.ini). Ensure that the column with labels is named as `lulcLabel` and that there is a column called `state` with the state each point lies in. The table used in our analysis is at [`trainingData/trPts_2022.csv`](trainingData/trPts_2022.csv).
+**When refreshing labeled points data for modeling:** [upload a points table](https://developers.google.com/earth-engine/guides/table_upload) (from, eg., a CSV or a Shapefile) into an Earth Engine Feature Collection, and set its path as the value of `lulcLabeledPoints` in [`config.ini`](config.ini). Ensure that the column with labels is named as `label_2024`. The table used in our analysis is at [`trainingData/trPts_2024.csv`](trainingData/trPts_2024.csv).
 
 ### 2. Generate masks for landscape zonation and area of interest
 
@@ -85,7 +91,7 @@ Python notebook: [`calcFeatureRasterAndPoints.ipynb`](calcFeatureRasterAndPoints
 
 Module used: [`featuresForModeling`](featuresForModeling).
 
-The [`calcFeatureRasterAndPoints.ipynb`](calcFeatureRasterAndPoints.ipynb) notebook uses the [`featuresForModeling`](featuresForModeling) module (see [here](#generating-features-and-sampling-them) for additional module-level details) to take historical satellite imagery and various other gridded geospatial datasets and generates several features capturing the biophysical characteristics of landscapes at the pixel scale.
+The [`calcFeatureRasterAndPoints.ipynb`](calcFeatureRasterAndPoints.ipynb) notebook uses the [`featuresForModeling`](featuresForModeling) module (see [here](#generating-features-and-sampling-them) for additional module-level details) to take historical satellite imagery and various other gridded geospatial datasets and generates several features capturing the biophysical characteristics of landscapes at the pixel scale. It also uses [`labelHierarchy.json`](labelHierarchy.json) which contains a representation of the label hierarchy.
 
 It then attaches these features and the zonation masks from the [previous step](#2-generate-masks-for-landscape-zonation-and-area-of-interest) to the labeled points, thus producing a table of labeled points with their corresponding feature vectors.
 
@@ -93,11 +99,20 @@ All inputs and running parameters for this step are set in, and used from, [`con
 
 ### 4. Train a classifier and predict with it
 
-Python notebook: [`classify.ipynb`](classify.ipynb).
+Python notebook: [`classifyHierarch.ipynb`](classifyHierarch.ipynb).
 
 Module used: [`classification`](classification).
 
-The [`classify.ipynb`](classify.ipynb) notebook uses the [`classification`](classification) module (see [here](#classificationtraining-and-prediction) for more on how it is organized) to train a classifier using the table of feature-vector-attached labeled points, and then predicts with the classifier to produce a probabilistic landcover map. This map contains pixel-wise probability of each landcover type and the top-ranking landcover type label for that pixel.
+The [`classifyHierarch.ipynb`](classifyHierarch.ipynb) notebook uses the [`classification`](classification) module (see [here](#classificationtraining-and-prediction) for more on how it is organized) to train classifiers hierarchically using the table of feature-vector-attached labeled points. It then predicts with the herarchical classifiers to produce multiple intermediate probabilistic predictions. These intermediate predictions are then combined to produce a final map containing, for each hierarchical level, pixel-wise probability of each landcover type and the top-ranking landcover type label for that pixel.
+
+Four ways of building hierarchical classification are considered here: 
+* implicit
+* dependent
+* explicit
+  * using ***multiplicative*** rule
+  * using ***step-wise*** rule
+
+After evaluations, the final map we published is the result of multiplicative explicit hierarchical classification approach. See [`classifyHierarch.ipynb`](classifyHierarch.ipynb) notebook for how to perform each of these classifications.
 
 Many inputs and running parameters for this step are set in, and used from, [`config.ini`](config.ini). However, unlike in the previous steps, some of the key running parameters in this step are possible to be specified in-line in the notebook and passed as arguments into the training & prediction routine. These include:
 * The type of classifier to use ([Random Forests](https://developers.google.com/earth-engine/apidocs/ee-classifier-smilerandomforest) / [Gradient Boosted Trees](https://developers.google.com/earth-engine/apidocs/ee-classifier-smilegradienttreeboost)).
@@ -132,13 +147,32 @@ The following are details about the modules, the code they contain, and how they
     First, run the functions to generate the feature rasters individually. Once those are completed, run the function `assembleFeatureBandsAndExport()` to assemble them all into a composite raster and sample it to attach feature vectors to all the labeled points. Run all these functions from the notebook [`calcFeatureRasterAndPoints.ipynb`](calcFeatureRasterAndPoints.ipynb).
 
 ### Classification—training and prediction
-  * [`classification/classifyAndAssess.py`](classification/classifyAndAssess.py): Performs training of a classifier, predicts with it and calculates the classifier's performance metrics.
-    * `trainAndPredict()`
+  * [`classification/classifyAndAssess.py`](classification/classifyAndAssess.py): Performs training of hierarchical classifiers, predicts with each of them and then combines these predictions into a final land cover map and calculates the classification performance metrics.
+    * `trainAndPredictHierarchical_master()`
 
-    To run classification with different classifiers, choice of features to use, etc., define these as variables and pass them appropriately into `trainAndPredict()` as arguments. Use [`classify.ipynb`](classify.ipynb) to see how to do this.
+    To run classification with different classifiers, choice of features to use, etc., define these as variables and pass them appropriately into `trainAndPredictHierarchical_master()` as arguments. Use [`classifyHierarch.ipynb`](classifyHierarch.ipynb) to see how to do this.
 
 ## Funding and support
 
-Financial support for various aspects of this mapping work came from [Azim Premji University](https://azimpremjiuniversity.edu.in/) as part of the Research Funding Programme 2020, and from the [National Centre for Biological Sciences](https://www.ncbs.res.in/), its [Archives](https://archives.ncbs.res.in/), the Nadathur Foundation, [TNQ Technologies](https://www.tnq.co.in/csr-activities/) and [ATREE](https://www.atree.org/). [Nature Conservation Foundation](http://www.ncf-india.org/) provided technical and logistical support.
+Financial support for various aspects of this mapping work came from: 
+* [The Habitats Trust](https://www.thehabitatstrust.org/)
+* [National Centre for Biological Sciences](https://www.ncbs.res.in/), its [Archives](https://archives.ncbs.res.in/), [TNQ Technologies](https://www.tnq.co.in/csr-activities/)
+* The Nadathur Foundation
+* [Azim Premji University](https://azimpremjiuniversity.edu.in/) as part of the Research Funding Programme
+* [ATREE](https://www.atree.org/)
 
-This work would not have been possible without the generosity of efforts behind many free, public and open source scientific computation resources and software tools, chief among them being [{geemap}](https://geemap.org/), [Spatial Thoughts](https://spatialthoughts.com/) and [QGIS](https://qgis.org/). These analyses were carried out on the [Google Earth Engine](https://earthengine.google.com/) cloud computing platform.
+Technical and logistical support came from: 
+* [Nature Conservation Foundation](http://www.ncf-india.org/)
+* [Mahesh Sankaran Lab](https://www.ncbs.res.in/faculty/mahesh)
+
+Further, our work would not be possible without the creativity and generosity of efforts behind many free, public and open source scientific computation resources and software tools, chief among them being: 
+* [geemap](https://geemap.org/) by  [Qiusheng Wu](https://github.com/giswqs)
+* [Spatial Thoughts](https://spatialthoughts.com/) by [Ujaval Gandhi](https://github.com/spatialthoughts)
+* [awesome-gee-community-catalog](https://gee-community-catalog.org/) by [Samapriya Roy](https://github.com/samapriya/)
+* [Google Earth Engine Developers Group](https://groups.google.com/g/google-earth-engine-developers)
+* [Google Earth Engine on Stack Exchange](https://gis.stackexchange.com/questions/tagged/google-earth-engine)
+* [QGIS](https://qgis.org/)
+* Yoni Gavish of [*Gavish et al. (2018)*](https://doi.org/10.1016/j.isprsjprs.2017.12.002)
+* Multiple publicly-funded central and state government portals and repositories. 
+
+These analyses were carried out on the [Google Earth Engine](https://earthengine.google.com/) cloud computing platform.

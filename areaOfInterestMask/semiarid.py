@@ -74,12 +74,6 @@ def maskWithClassLabels(returnExisting = False, startFreshExport = False):
 
         if startFreshExport == True:
             reg = statesOfInterest.geometry().bounds()
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               "image": inputMask,
               "description": assetName,
@@ -150,12 +144,6 @@ def classificationZonesFromStatesNumeric(returnExisting = False, startFreshExpor
 
         if startFreshExport == True:
             reg = ee.Feature(ee.FeatureCollection(config.get("CORE", "indiaMainlandID")).first()).simplify(500)
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               'image': zones,
               'description': assetName,
@@ -198,12 +186,6 @@ def classificationZonesFromStatesOneHotEncoded(returnExisting = False, startFres
 
         if startFreshExport == True:
             reg = ee.Feature(ee.FeatureCollection(config.get("CORE", "indiaMainlandID")).first()).simplify(500)
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               'image': zones,
               'description': assetName,
@@ -247,12 +229,6 @@ def classificationZonesFromBiomesNumeric(returnExisting = False, startFreshExpor
 
         if startFreshExport == True:
             reg = ee.Feature(ee.FeatureCollection(config.get("CORE", "indiaMainlandID")).first()).simplify(500)
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               'image': zones,
               'description': assetName,
@@ -295,12 +271,6 @@ def classificationZonesFromBiomesOneHotEncoded(returnExisting = False, startFres
 
         if startFreshExport == True:
             reg = ee.Feature(ee.FeatureCollection(config.get("CORE", "indiaMainlandID")).first()).simplify(500)
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               'image': zones,
               'description': assetName,
@@ -344,12 +314,6 @@ def classificationZonesFromGeologicalAgeNumeric(returnExisting = False, startFre
 
         if startFreshExport == True:
             reg = ee.Feature(ee.FeatureCollection(config.get("CORE", "indiaMainlandID")).first()).simplify(500)
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               'image': zones,
               'description': assetName,
@@ -392,12 +356,6 @@ def classificationZonesFromGeologicalAgeOneHotEncoded(returnExisting = False, st
 
         if startFreshExport == True:
             reg = ee.Feature(ee.FeatureCollection(config.get("CORE", "indiaMainlandID")).first()).simplify(500)
-            # reg = ee.Feature(ee.FeatureCollection("users/pradeepkoulgi/indiaDistricts").filter(ee.Filter.eq('DISTRICT', 'Bellary')).first())
-            # reg = ee.Feature(ee.Geometry.Polygon( \
-            #     [[[72.95673828124998, 23.55260439144696], \
-            #       [72.95673828124998, 20.949843246570985], \
-            #       [75.74726562499998, 20.949843246570985], \
-            #       [75.74726562499998, 23.55260439144696]]]), {})
             ee.batch.Export.image.toAsset(** {
               'image': zones,
               'description': assetName,

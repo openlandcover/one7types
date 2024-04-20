@@ -1,0 +1,22 @@
+name: landcover
+# Created using `conda env export --from-history > environment.yml`
+# to make it platform independent:
+# https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#exporting-an-environment-file-across-platforms.
+# Fails to create the env when used in `conda env create -f environment.yml`
+# with a "ResolvePackageNotFound" for geemap and anytree.
+# Seems to be because the creation step does not include 
+# channel info for packages: 
+# https://stackoverflow.com/a/71201760.
+# https://github.com/conda/conda/issues/12842
+# 
+# To reproduce this env, create a new (empty) env
+# and manually install the following packages, from the conda-forge channel.
+channels:
+  - defaults
+dependencies:
+  - geemap
+  - geopandas
+  - matplotlib
+  - jupyterlab
+  - configparser
+  - anytree

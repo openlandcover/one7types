@@ -6,6 +6,7 @@ import ast
 import subprocess
 
 from areaOfInterestMask import semiarid
+from utils.trees import TreeParser as tp
 
 def filterAndMaskCloudsL8C2SR(config):
     # Mask clouds and shadows
@@ -42,6 +43,7 @@ def filterAndMaskCloudsL8C2SR(config):
         .filterDate(l8compStDt, l8compEndDt) \
         .filterMetadata('CLOUD_COVER', 'less_than', cloudcoverMinThresh) \
         .filterBounds(india.geometry()) \
+        .filter(ee.Filter.neq("TEMPERATURE_MULT_BAND_ST_B10", None)) \
         .map(maskAndPrepSrL8)
 
     return maskedColl
@@ -440,8 +442,8 @@ def palsarAggregation(returnExisting = False, startFreshExport = False):
                 snicCompact = snicRunComp))
 
         if startFreshExport == True:
-            reg = fullSpanOfExport
-            # reg = trialSpanOfExport
+            # reg = fullSpanOfExport
+            reg = trialSpanOfExport
             ee.batch.Export.image.toAsset(** {
               'image': palsarMd,
               'description': 'palsarVegDens',
@@ -452,6 +454,77 @@ def palsarAggregation(returnExisting = False, startFreshExport = False):
             }).start()
 
     return palsarMd
+
+def palsarScansarAggregation(returnExisting = False, startFreshExport = False):
+    with open("config.ini", 'r') as f:
+        fileContents = f.read()
+    config = cp.RawConfigParser(allow_no_value = True, interpolation = cp.ExtendedInterpolation())
+    config.read_file(io.StringIO(fileContents))
+
+    configPalsarScansar = config['FEATURES-PALSAR-SCANSAR']
+    palsarScansar = ee.ImageCollection(configPalsarScansar.get('palsarScansarEEID'))
+    aggrStartDate = configPalsarScansar.get('startDate')
+    aggrEndDate   = configPalsarScansar.get('endDate')
+    medBandName = configPalsarScansar.get('featureBandNamePalsarScansarMedian')
+    medSegBandName = configPalsarScansar.get('featureBandNamePalsarScansarMedianSegmented')
+    rangeBandName = configPalsarScansar.get('featureBandNamePalsarScansarRange')
+    rangeSegBandName = configPalsarScansar.get('featureBandNamePalsarScansarRangeSegmented')
+    configAssemble    = config['FEATURES-ASSEMBLE']
+    snicRunComp       = configAssemble.getint('snicCompactness')
+    snicRunNeighbSize = configAssemble.getint('snicNeighbourhoodSize')
+    snicSeedGridFine  = configAssemble.getint('snicSuperPixSeedLocSpacingFINE')
+    assetFolder = config.get('CORE', 'assetFolderWithFeatures')
+    districts = ee.FeatureCollection(config.get('CORE', 'indiaDistricts'))
+    trialSpanOfExportDistrictName = config.get('CORE', 'trialSpanToGenerateFeatureRastersOverDistrict')
+    trialSpanOfExport = ee.Feature(districts.filter(ee.Filter.eq('DISTRICT', trialSpanOfExportDistrictName)).first())
+    fullSpanOfExport  = ee.Feature(ee.FeatureCollection(config.get('CORE', 'fullSpanToGenerateFeatureRastersOver')).first()).simplify(500)
+
+    fine = ee.Algorithms.Image.Segmentation.seedGrid(snicSeedGridFine)
+    snicRunParams = {"seeds": fine, "compactness": snicRunComp, "neighborhoodSize": snicRunNeighbSize}
+
+    if returnExisting == True:
+        assetName = configPalsarScansar.get('existingPalsarScansarVeg')
+        palsarScansarMd = ee.Image(assetFolder + assetName)
+    else:
+        palsarScansarMd = palsarScansar.filterDate(aggrStartDate, aggrEndDate) \
+            .filter(ee.Filter.listContains('Polarizations', 'HV')) \
+            .map(lambda img: img.updateMask(img.select('MSK').eq(1))) \
+            .select('HV') \
+            .median() \
+            .rename(medBandName) \
+            .float()
+        palsarScansarMedian_seg = ee.Algorithms.Image.Segmentation.SNIC(** {"image": palsarScansarMd} | snicRunParams).select(medBandName + "_mean").rename(medSegBandName)
+        palsarScansarRange = palsarScansar.filterDate(aggrStartDate, aggrEndDate) \
+            .filter(ee.Filter.listContains('Polarizations', 'HV')) \
+            .map(lambda img: img.updateMask(img.select('MSK').eq(1))) \
+            .select('HV') \
+            .reduce(ee.Reducer.percentile([20,80])) \
+            .expression('b(1)-b(0)') \
+            .rename(rangeBandName) \
+            .float()
+        palsarScansarRange_seg = ee.Algorithms.Image.Segmentation.SNIC(** {"image": palsarScansarRange} | snicRunParams).select(rangeBandName + "_mean").rename(rangeSegBandName)
+        palsarScansarMd = palsarScansarMd.addBands(palsarScansarMedian_seg) \
+            .addBands(palsarScansarRange).addBands(palsarScansarRange_seg) \
+            .set(dict(
+                timeseriesFrom = aggrStartDate,
+                timeseriesTo = aggrEndDate,
+                snicSegmSeedGridSpacing = snicSeedGridFine,
+                snicSegmNeighbSize = snicRunNeighbSize,
+                snicCompact = snicRunComp))
+
+        if startFreshExport == True:
+            reg = fullSpanOfExport
+            # reg = trialSpanOfExport
+            ee.batch.Export.image.toAsset(** {
+              'image': palsarScansarMd,
+              'description': 'palsarScansarVegDens',
+              'assetId': assetFolder + 'palsarScansarVegDens',
+              'scale': 30,
+              'region': reg.geometry(),
+              'maxPixels': 1e13
+            }).start()
+
+    return palsarScansarMd
 
 def evapotranspirationAggregation(returnExisting = False, startFreshExport = False):
     with open("config.ini", 'r') as f:
@@ -489,7 +562,6 @@ def evapotranspirationAggregation(returnExisting = False, startFreshExport = Fal
             .sum() \
             .float() \
             .rename([etVegBandName, etSoilBandName])
-        #     .resample('bilinear') \ before rename
         et_seg = ee.Algorithms.Image.Segmentation.SNIC(** {"image": etAnnual} | snicRunParams).select([etSoilBandName + "_mean", etVegBandName + "_mean"]).rename([etSoilSegBandName, etVegSegBandName])
         etAnnual = etAnnual.addBands(et_seg).set(dict(
             etYear = etYear,
@@ -776,17 +848,78 @@ def geomorphologyTerrainRuggednessAggregation(returnExisting = False, startFresh
 
     return geomorphRugg_ops
 
+def canopyHeightAggregation(returnExisting = False, startFreshExport = False):
+    with open("config.ini", 'r') as f:
+        fileContents = f.read()
+    config = cp.RawConfigParser(allow_no_value = True, interpolation = cp.ExtendedInterpolation())
+    config.read_file(io.StringIO(fileContents))
+
+    configCanopyHeight   = config['FEATURES-CANOPY-HEIGHT']
+    cnpyheight           = ee.Image(configCanopyHeight.get('canopyHeightEEID'))
+    cnpyheightStdDev     = ee.Image(configCanopyHeight.get('canopyHeightStandardDeviationEEID'))
+    cnpyheightBand       = configCanopyHeight.get('canopyHeightBandname')
+    cnpyheightStdDevBand = configCanopyHeight.get('canopyHeightStdDevBandname')
+    cnpyheightFeatureName          = configCanopyHeight.get('featureBandName')
+    cnpyheightStdDevFeatureName    = configCanopyHeight.get('featureStdDevBandName')
+    cnpyheightSegFeatureName       = configCanopyHeight.get('featureBandNameCanopyHeightSegmented')
+    cnpyheightStdDevSegFeatureName = configCanopyHeight.get('featureBandNameCanopyHeightStdDevSegmented')
+    assetName = configCanopyHeight.get('existingCanopyHeight')
+    configAssemble    = config['FEATURES-ASSEMBLE']
+    snicRunComp       = configAssemble.getint('snicCompactness')
+    snicRunNeighbSize = configAssemble.getint('snicNeighbourhoodSize')
+    snicSeedGridFine  = configAssemble.getint('snicSuperPixSeedLocSpacingFINE')
+    assetFolder = config.get('CORE', 'assetFolderWithFeatures')
+    districts = ee.FeatureCollection(config.get('CORE', 'indiaDistricts'))
+    trialSpanOfExportDistrictName = config.get('CORE', 'trialSpanToGenerateFeatureRastersOverDistrict')
+    trialSpanOfExport = ee.Feature(districts.filter(ee.Filter.eq('DISTRICT', trialSpanOfExportDistrictName)).first())
+    fullSpanOfExport  = ee.Feature(ee.FeatureCollection(config.get('CORE', 'fullSpanToGenerateFeatureRastersOver')).first()).simplify(500)
+
+    fine = ee.Algorithms.Image.Segmentation.seedGrid(snicSeedGridFine)
+    snicRunParams = {'seeds': fine, 'compactness': snicRunComp, 'neighborhoodSize': snicRunNeighbSize}
+
+    if returnExisting == True:
+        cnpyHt_ops = ee.Image(assetFolder + assetName)
+    else:
+        cnpyHt = cnpyheight.select([cnpyheightBand], [cnpyheightFeatureName]).unmask() \
+            .addBands(cnpyheightStdDev.select([cnpyheightStdDevBand], [cnpyheightStdDevFeatureName]).unmask()) \
+            .float()
+
+        cnpyHt_seg = ee.Algorithms.Image.Segmentation.SNIC(** {'image': cnpyHt} | snicRunParams) \
+            .select([cnpyheightFeatureName + "_mean", cnpyheightStdDevFeatureName + "_mean"], [cnpyheightSegFeatureName, cnpyheightStdDevSegFeatureName])
+
+        cnpyHt_ops = ee.Image.cat(cnpyHt, cnpyHt_seg) \
+            .set(dict(
+                snicSegmSeedGridSpacing = snicSeedGridFine,
+                snicSegmNeighbSize = snicRunNeighbSize,
+                snicCompact = snicRunComp))
+
+        if startFreshExport == True:
+            reg = fullSpanOfExport
+            # reg = trialSpanOfExport
+            ee.batch.Export.image.toAsset(** {
+              'image': cnpyHt_ops,
+              'description': assetName,
+              'assetId': assetFolder + assetName,
+              'scale': 30,
+              'region': reg.geometry(),
+              'maxPixels': 1e13
+            }).start()
+
+    return cnpyHt_ops
+
 def assembleAllExistingFeatureRasters():
     pheno = seasonalityParamsL8(returnExisting = True)
     tctd = tasselledCapCoeffsL8(returnExisting = True)
     ndvp = multiTemporalInterPercentileDifferencesL8(returnExisting = True)
     palsar = palsarAggregation(returnExisting = True)
+    palsarScansar = palsarScansarAggregation(returnExisting = True)
     et = evapotranspirationAggregation(returnExisting = True)
     elev = elevationAggregation(returnExisting = True)
     ppt = precipitationAggregation(returnExisting = True)
     topo = topographyMtpiAggregation(returnExisting = True)
     topo_hand = topographyHandAggregation(returnExisting = True)
     geomorph = geomorphologyTerrainRuggednessAggregation(returnExisting = True)
+    cnpyHeight = canopyHeightAggregation(returnExisting = True)
     zonesStatesNum = semiarid.classificationZonesFromStatesNumeric(returnExisting = True)
     zonesStatesOhe = semiarid.classificationZonesFromStatesOneHotEncoded(returnExisting = True)
     zonesBiomesNum = semiarid.classificationZonesFromBiomesNumeric(returnExisting = True)
@@ -797,24 +930,30 @@ def assembleAllExistingFeatureRasters():
     lon = ee.Image.pixelLonLat().select('longitude').float()
     lat = ee.Image.pixelLonLat().select('latitude').float()
 
-    assembled = ee.Image.cat(pheno, tctd, ndvp, palsar, et, elev, ppt, topo, topo_hand, geomorph, lon, lat, zonesStatesNum, zonesStatesOhe, zonesBiomesNum, zonesBiomesOhe, zonesGeoAgeNum, zonesGeoAgeOhe, aoiMask)
+    assembled = ee.Image.cat(pheno, tctd, ndvp, palsar, palsarScansar, et, elev, ppt, topo, topo_hand, geomorph, cnpyHeight, lon, lat, zonesStatesNum, zonesStatesOhe, zonesBiomesNum, zonesBiomesOhe, zonesGeoAgeNum, zonesGeoAgeOhe, aoiMask)
 
     return assembled
 
 def assembleFeatureBandsAndExport(returnExisting = False, startFreshExport = False):
-    def sampleFeatures(pt):
-        samples = allFeatures.reduceRegion(** {
-            "reducer": ee.Reducer.first(),
-            "geometry": pt.geometry(),
-            "scale": 30,
-            "tileScale": 8
-        })
+    def addNumericLabelsOfStringLabels(pt):
+        l1LabelName= ee.Algorithms.If(labelNamesL2NononeSubset.contains(pt.getString("label_2024")), labelTree.find_by_name(labelNamesL1[0]).name, labelTree.find_by_name(labelNamesL1[1]).name)
         labelNumeric     = ee.Dictionary({    "labelNum": allONEMulticlassLabelnamesAndTheirNumLabels.getNumber(pt.getString("label"))})
-        labelPalsHarmNumeric = ee.Dictionary({"label_palsarHarmonisedNum": allONEMulticlassPalsarHarmonizedLabelnamesAndTheirNumLabels.getNumber(pt.getString("lulcLabel"))})
-        onelabelNumeric  = ee.Dictionary({      "oneNum": allONESingleclassLabelnamesAndTheirNumLabels.getNumber(pt.getString( "one"))})
+        labelPalsHarmNumeric = ee.Dictionary({"label_palsarHarmonisedNum": allONEMulticlassPalsarHarmonizedLabelnamesAndTheirNumLabels.getNumber(pt.getString("label_palsarHarmonised"))})
+        label_2024Numeric = ee.Dictionary({"label_2024Num": allONEMulticlassPalsarHarmonizedLabelnamesAndTheirNumLabels.getNumber(pt.getString("label_2024"))})
+        labelL1        = ee.Dictionary({    "labelL1":    l1LabelName})
+        labelL1Numeric = ee.Dictionary({    "labelL1Num": allONESingleclassLabelnamesAndTheirNumLabels.getNumber(l1LabelName)})
         lulclabelNumeric = ee.Dictionary({"lulc_codeNum": allLULCcodeaLabelnamesAndTheirNumLabels.getNumber(pt.getString("lulc_code"))})
         wlalabelNumeric  = ee.Dictionary({"wla_codeNum": allWLAcodesLabelnamesAndTheirNumLabels.getNumber(pt.getString(   "wla_code"))})
-        return pt.set(samples.combine(labelNumeric).combine(labelPalsHarmNumeric).combine(lulclabelNumeric).combine(wlalabelNumeric).combine(onelabelNumeric))
+        return pt.set(labelNumeric.combine(labelL1).combine(labelL1Numeric).combine(label_2024Numeric).combine(labelPalsHarmNumeric).combine(lulclabelNumeric).combine(wlalabelNumeric))
+
+    def sampleFeatures(grid):
+        pointsInGrid = origTrainingPoints.filterBounds(grid.geometry())
+        samples = allFeatures.reduceRegions(** {
+            "reducer": ee.Reducer.first(),
+            "collection": pointsInGrid,
+            "scale": 30})
+        samplesNumLabelsAdded = samples.map(addNumericLabelsOfStringLabels)
+        return samplesNumLabelsAdded
 
     # Load the configuration file and read-in parameters
     with open("config.ini", 'r') as f:
@@ -825,10 +964,8 @@ def assembleFeatureBandsAndExport(returnExisting = False, startFreshExport = Fal
     origTrainingPoints = ee.FeatureCollection(config.get('CORE', 'lulcLabeledPoints'))
     assetFolder = config.get('CORE', 'assetFolderWithFeatures')
     assetName   = config.get('FEATURES-ASSEMBLE', 'existingLabeledPointsWithFeatures')
-    trptsAssetsSubfolder   = config.get('FEATURES-ASSEMBLE', 'subfolderForPointsWithFeatures')
     oneMulticlassLabels  = ast.literal_eval(config.get('FEATURES-ASSEMBLE', 'lulcLabelsEnhancedForONEMulticlass'))
     oneMulticlassLabelsPalsarHarmonized  = ast.literal_eval(config.get('FEATURES-ASSEMBLE', 'lulcLabelsPalsarHarmonizedForONEMulticlass'))
-    oneSingleclassLabels = ast.literal_eval(config.get('FEATURES-ASSEMBLE', 'lulcLabelsForONE'))
     lulccodesLabels      = ast.literal_eval(config.get('FEATURES-ASSEMBLE', 'lulcLabelsForlulcCodes'))
     wlacodesLabels       = ast.literal_eval(config.get('FEATURES-ASSEMBLE', 'lulclabelsForWastelandAtlasCodes'))
     districts = ee.FeatureCollection(config.get('CORE', 'indiaDistricts'))
@@ -837,25 +974,7 @@ def assembleFeatureBandsAndExport(returnExisting = False, startFreshExport = Fal
     fullSpanOfExport  = ee.Feature(ee.FeatureCollection(config.get('CORE', 'fullSpanToGenerateFeatureRastersOver')).first()).simplify(500)
 
     if returnExisting == True:
-        # Run shell command to get the list of IDs for all the state-wise point tables
-        # Ref: https://stackoverflow.com/a/4256153
-        cmdToListStatewisePointsTableIDs = f"earthengine ls {assetFolder}{trptsAssetsSubfolder}"
-        process = subprocess.Popen(cmdToListStatewisePointsTableIDs.split(), stdout=subprocess.PIPE)
-        statewisePointsTableIDsBytes, error = process.communicate()
-
-        # The list is in the form of bytes with names separated by "\n"
-        # Split by "\n" to get a list of bytes, drop last element since empty ""
-        # Ref: https://stackoverflow.com/a/15095537; https://stackoverflow.com/a/18170012
-        statewisePtsIDsList = statewisePointsTableIDsBytes.split(b'\n')
-        del statewisePtsIDsList[-1]
-
-        # Run through the list and gather the tables into one merged featurecollection
-        fc = ee.FeatureCollection([])
-        for stateTableID in statewisePtsIDsList:
-            # Ref: https://www.geeksforgeeks.org/how-to-convert-bytes-to-string-in-python/
-            fc = fc.merge(ee.FeatureCollection(stateTableID.decode()))
-
-        sampledPoints = fc
+        sampledPoints = ee.FeatureCollection(assetFolder + assetName)
     else:
         # Gather up ALL feature rasters, sample them
         allFeatures = assembleAllExistingFeatureRasters()
@@ -870,9 +989,14 @@ def assembleFeatureBandsAndExport(returnExisting = False, startFreshExport = Fal
         labelValListONEMulticlass = [i for i in range(1, len(oneMulticlassLabels)+1)]
         allONEMulticlassLabelnamesAndTheirNumLabels = ee.Dictionary.fromLists(labelNameListONEMulticlass, labelValListONEMulticlass)
 
-        labelNameListONEMulticlassPalsarHarmonized = ee.List(oneMulticlassLabelsPalsarHarmonized)
-        labelValListONEMulticlassPalsarHarmonized = [i for i in range(1, len(oneMulticlassLabelsPalsarHarmonized)+1)]
+        labelTree = tp().read_from_json("labelHierarchy.json")
+        labelNamesL0AndL1AndL2 = labelTree.get_labelInfo_byLevel(mode = "name")
+        labelCodesL0AndL1AndL2 = labelTree.get_labelInfo_byLevel(mode = "code")
+        labelNamesL1 = labelNamesL0AndL1AndL2[1]
+        labelNameListONEMulticlassPalsarHarmonized = labelNamesL0AndL1AndL2[2]
+        labelValListONEMulticlassPalsarHarmonized = labelCodesL0AndL1AndL2[2]
         allONEMulticlassPalsarHarmonizedLabelnamesAndTheirNumLabels = ee.Dictionary.fromLists(labelNameListONEMulticlassPalsarHarmonized, labelValListONEMulticlassPalsarHarmonized)
+        labelNamesL2NononeSubset = ee.List(labelTree.get_labelInfo_atNode("nonone")[1])
 
         labelNameListLULCcodes = ee.List(lulccodesLabels)
         labelValListLULCcodes = [i for i in range(1, len(lulccodesLabels)+1)]
@@ -882,26 +1006,20 @@ def assembleFeatureBandsAndExport(returnExisting = False, startFreshExport = Fal
         labelValListWLAcodes = [i for i in range(1, len(wlacodesLabels)+1)]
         allWLAcodesLabelnamesAndTheirNumLabels = ee.Dictionary.fromLists(labelNameListWLAcodes, labelValListWLAcodes)
 
-        labelNameListONESingleclass = ee.List(oneSingleclassLabels)
-        labelValListONESingleclass = [i for i in range(1, len(oneSingleclassLabels)+1)]
+        labelNameListONESingleclass = labelNamesL0AndL1AndL2[1]
+        labelValListONESingleclass = labelCodesL0AndL1AndL2[1]
         allONESingleclassLabelnamesAndTheirNumLabels = ee.Dictionary.fromLists(labelNameListONESingleclass, labelValListONESingleclass)
 
-        # Get the list of states from the points table
-        # and run the sampling+export on each state separately
-        trptsStates = origTrainingPoints.aggregate_array("state").distinct().getInfo()
-        for state in trptsStates:
-            # Filter points to state, sample and export as separate table.
-            # Add a random column, to help with debugging, etc., with a smaller sampling of points.
-            pointsToSample = origTrainingPoints.filter(ee.Filter.eq("state", state)) \
-                .randomColumn("statewiserandForFewerPts")
-            print(state + " num points ", pointsToSample.size().getInfo())
-            sampledPoints = pointsToSample.map(sampleFeatures)
+        # Create a covering grid over the region covered by points. Sampling by mapping over them goes much faster
+        proj = ee.Projection("EPSG:4326").scale(5, 5)
+        grids = origTrainingPoints.geometry().bounds().coveringGrid(proj)
+        sampledPoints = grids.map(sampleFeatures).flatten()
 
-            if startFreshExport == True:
-                ee.batch.Export.table.toAsset(** {
-                  'collection': sampledPoints,
-                  'description': assetName + "_" + state,
-                  'assetId': assetFolder + trptsAssetsSubfolder + "/" + assetName + "_" + state
-                }).start()
+        if startFreshExport == True:
+            ee.batch.Export.table.toAsset(** {
+                'collection': sampledPoints,
+                'description': assetName,
+                'assetId': assetFolder + assetName
+            }).start()
 
     return sampledPoints
